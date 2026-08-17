@@ -1,0 +1,10 @@
+[project]
+name = "job-monitor"
+version = "0.1.0"
+description = "Monitor inteligente de vagas desenvolvido em Python."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
