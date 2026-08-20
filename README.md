@@ -35,6 +35,7 @@ Coleta
 |       |-- deduplication.py
 |       |-- models.py
 |       |-- normalizer.py
+|       |-- service.py
 |       |-- validator.py
 |       `-- main.py
 |-- tests/
@@ -54,6 +55,7 @@ Cada diretório possui uma responsabilidade:
 - `deduplication.py`: geração da chave única baseada em fonte e URL;
 - `models.py`: representação padronizada dos dados de uma vaga;
 - `normalizer.py`: padronização dos textos coletados;
+- `service.py`: coordenação da normalização, validação e armazenamento;
 - `validator.py`: verificação dos campos obrigatórios, URL e datas;
 - `main.py`: ponto de entrada e coordenação dos componentes;
 - `tests`: testes automatizados.
@@ -110,6 +112,9 @@ Remove-Item Env:RUN_DATABASE_INTEGRATION
 
 Esse teste confirma a inserção e a prevenção de duplicatas dentro de uma
 transação que é desfeita ao final, sem manter dados fictícios no banco.
+
+As operações atuais do repositório permitem salvar uma vaga, buscá-la por sua
+chave de duplicidade e listar as vagas mais recentes com um limite configurável.
 
 ## Segurança
 

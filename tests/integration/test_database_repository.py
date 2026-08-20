@@ -5,8 +5,14 @@ from uuid import uuid4
 
 import pytest
 
-from job_monitor import Job, generate_job_key, load_database_settings
-from job_monitor.database import connect_database, save_job
+from job_monitor import (
+    Job,
+    JobProcessingStatus,
+    generate_job_key,
+    load_database_settings,
+    process_job,
+)
+from job_monitor.database import connect_database, find_job_by_key
 
 
 pytestmark = [
@@ -36,8 +42,12 @@ def test_save_job_and_prevent_duplicate_in_postgresql() -> None:
     try:
         try:
             with connection.transaction():
-                assert save_job(connection, job) is True
-                assert save_job(connection, job) is False
+                first_result = process_job(connection, job)
+                second_result = process_job(connection, job)
+
+                assert first_result.status is JobProcessingStatus.INSERTED
+                assert second_result.status is JobProcessingStatus.DUPLICATE
+                assert find_job_by_key(connection, job_key) == job
                 raise RollbackIntegrationTest
         except RollbackIntegrationTest:
             pass
@@ -50,4 +60,3 @@ def test_save_job_and_prevent_duplicate_in_postgresql() -> None:
         assert stored_count == 0
     finally:
         connection.close()
-
