@@ -27,6 +27,7 @@ Coleta
 |       |-- scraper/
 |       |-- database/
 |       |   |-- connection.py
+|       |   |-- repository.py
 |       |   `-- schema.py
 |       |-- notifier/
 |       |-- config.py
@@ -98,6 +99,17 @@ Execute os testes:
 ```powershell
 python -m pytest
 ```
+
+Para executar também o teste de integração com o PostgreSQL local:
+
+```powershell
+$env:RUN_DATABASE_INTEGRATION = "1"
+python -m pytest
+Remove-Item Env:RUN_DATABASE_INTEGRATION
+```
+
+Esse teste confirma a inserção e a prevenção de duplicatas dentro de uma
+transação que é desfeita ao final, sem manter dados fictícios no banco.
 
 ## Segurança
 
