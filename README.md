@@ -26,7 +26,10 @@ Coleta
 |   `-- job_monitor/
 |       |-- scraper/
 |       |-- database/
+|       |   |-- connection.py
+|       |   `-- schema.py
 |       |-- notifier/
+|       |-- config.py
 |       |-- __init__.py
 |       |-- deduplication.py
 |       |-- models.py
@@ -44,7 +47,8 @@ Coleta
 Cada diretório possui uma responsabilidade:
 
 - `scraper`: coleta de vagas em fontes externas;
-- `database`: armazenamento, consultas e prevenção de duplicatas;
+- `database`: conexão e estrutura PostgreSQL para armazenamento das vagas;
+- `config.py`: leitura segura das configurações do ambiente;
 - `notifier`: envio futuro de notificações;
 - `deduplication.py`: geração da chave única baseada em fonte e URL;
 - `models.py`: representação padronizada dos dados de uma vaga;
@@ -79,6 +83,15 @@ Instale as dependências:
 ```powershell
 python -m pip install -r requirements.txt
 ```
+
+Crie a configuração local a partir do modelo:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Edite o arquivo `.env` com os dados da sua instalação PostgreSQL. Esse arquivo
+é local, está ignorado pelo Git e nunca deve ser publicado.
 
 Execute os testes:
 
