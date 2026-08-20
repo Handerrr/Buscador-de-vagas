@@ -1,6 +1,14 @@
 """Testes da filtragem de vagas por relevância."""
 
-from job_monitor import Job, JobFilterCriteria, filter_jobs, is_relevant
+from job_monitor import (
+    Job,
+    JobFilterCriteria,
+    JobLevel,
+    filter_jobs,
+    infer_job_level,
+    is_relevant,
+    parse_job_level,
+)
 
 
 def _create_job(
@@ -70,3 +78,29 @@ def test_filter_jobs_preserves_only_relevant_jobs() -> None:
 
     assert filter_jobs([python_job, design_job], criteria) == [python_job]
 
+
+def test_title_keywords_match_only_job_title() -> None:
+    """Não aceita um cargo apenas porque ele é citado na descrição."""
+    criteria = JobFilterCriteria(title_keywords=("analista de dados",))
+    job = _create_job(
+        title="Assistente Administrativo",
+        description="Contato diário com o analista de dados.",
+    )
+
+    assert is_relevant(job, criteria) is False
+
+
+def test_infer_job_level_in_portuguese_and_english() -> None:
+    """Reconhece aliases de senioridade usados nos dois idiomas."""
+    assert infer_job_level(_create_job(title="Analista de Dados Júnior")) is JobLevel.JUNIOR
+    assert infer_job_level(_create_job(title="Senior Data Engineer")) is JobLevel.SENIOR
+    assert parse_job_level("Estagiário") is JobLevel.INTERNSHIP
+    assert parse_job_level("Pleno") is JobLevel.MID_LEVEL
+
+
+def test_configured_levels_reject_other_identified_level() -> None:
+    """Rejeita um nível identificado que não esteja entre os aceitos."""
+    criteria = JobFilterCriteria(levels=(JobLevel.JUNIOR, JobLevel.MID_LEVEL))
+
+    assert is_relevant(_create_job(title="Senior Data Engineer"), criteria) is False
+    assert is_relevant(_create_job(title="Data Engineer"), criteria) is True

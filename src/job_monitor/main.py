@@ -5,9 +5,9 @@ from dataclasses import dataclass
 
 from psycopg import Error as DatabaseError
 
-from job_monitor.config import load_database_settings
+from job_monitor.config import load_database_settings, load_job_filter_criteria
 from job_monitor.database import connect_database, initialize_database
-from job_monitor.filtering import JobFilterCriteria, filter_jobs
+from job_monitor.filtering import JobFilterCriteria, filter_jobs, parse_job_level
 from job_monitor.scraper import RemoteOKError, fetch_remote_ok_jobs
 from job_monitor.service import JobProcessingStatus, process_job
 
@@ -87,22 +87,34 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         help="quantidade máxima de vagas processadas",
     )
     parser.add_argument(
+        "--titles",
+        nargs="+",
+        default=None,
+        help="títulos de cargos aceitos",
+    )
+    parser.add_argument(
         "--include-keywords",
         nargs="+",
-        default=[],
+        default=None,
         help="palavras desejadas no título ou na descrição",
     )
     parser.add_argument(
         "--exclude-keywords",
         nargs="+",
-        default=[],
+        default=None,
         help="palavras que tornam uma vaga irrelevante",
     )
     parser.add_argument(
         "--locations",
         nargs="+",
-        default=[],
+        default=None,
         help="localidades aceitas",
+    )
+    parser.add_argument(
+        "--levels",
+        nargs="+",
+        default=None,
+        help="níveis aceitos: estágio, júnior, pleno e sênior",
     )
     return parser
 
@@ -110,13 +122,36 @@ def _create_argument_parser() -> argparse.ArgumentParser:
 def main() -> int:
     """Executa a interface de terminal e retorna seu código de saída."""
     arguments = _create_argument_parser().parse_args()
-    criteria = JobFilterCriteria(
-        included_keywords=tuple(arguments.include_keywords),
-        excluded_keywords=tuple(arguments.exclude_keywords),
-        locations=tuple(arguments.locations),
-    )
 
     try:
+        configured_criteria = load_job_filter_criteria()
+        criteria = JobFilterCriteria(
+            title_keywords=(
+                tuple(arguments.titles)
+                if arguments.titles is not None
+                else configured_criteria.title_keywords
+            ),
+            included_keywords=(
+                tuple(arguments.include_keywords)
+                if arguments.include_keywords is not None
+                else configured_criteria.included_keywords
+            ),
+            excluded_keywords=(
+                tuple(arguments.exclude_keywords)
+                if arguments.exclude_keywords is not None
+                else configured_criteria.excluded_keywords
+            ),
+            locations=(
+                tuple(arguments.locations)
+                if arguments.locations is not None
+                else configured_criteria.locations
+            ),
+            levels=(
+                tuple(parse_job_level(level) for level in arguments.levels)
+                if arguments.levels is not None
+                else configured_criteria.levels
+            ),
+        )
         summary = run_monitor(
             tags=tuple(arguments.tags),
             limit=arguments.limit,

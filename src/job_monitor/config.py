@@ -3,6 +3,8 @@
 import os
 from dataclasses import dataclass
 
+from job_monitor.filtering import JobFilterCriteria, parse_job_level
+
 
 @dataclass(frozen=True)
 class DatabaseSettings:
@@ -45,3 +47,27 @@ def load_database_settings(*, load_env_file: bool = True) -> DatabaseSettings:
         password=os.environ["DB_PASSWORD"],
     )
 
+
+def _split_setting(value: str | None) -> tuple[str, ...]:
+    """Separa uma configuração composta por valores delimitados por vírgula."""
+    if not value:
+        return ()
+
+    return tuple(item.strip() for item in value.split(",") if item.strip())
+
+
+def load_job_filter_criteria(*, load_env_file: bool = True) -> JobFilterCriteria:
+    """Carrega os critérios de relevância definidos no ambiente."""
+    if load_env_file:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+
+    level_names = _split_setting(os.getenv("JOB_LEVELS"))
+    return JobFilterCriteria(
+        title_keywords=_split_setting(os.getenv("JOB_TITLES")),
+        included_keywords=_split_setting(os.getenv("JOB_INCLUDED_KEYWORDS")),
+        excluded_keywords=_split_setting(os.getenv("JOB_EXCLUDED_KEYWORDS")),
+        locations=_split_setting(os.getenv("JOB_LOCATIONS")),
+        levels=tuple(parse_job_level(level) for level in level_names),
+    )

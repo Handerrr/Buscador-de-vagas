@@ -133,6 +133,12 @@ python -m job_monitor.main `
     --limit 20
 ```
 
+Por padrão, os critérios são carregados do `.env`. O projeto está configurado
+com 15 famílias de cargos comuns em tecnologia e dados no Brasil, incluindo
+aliases em português e inglês, os níveis estágio, júnior, pleno e sênior, e as
+localizações `Brasil` e `Brazil`. Argumentos informados no terminal substituem
+a configuração correspondente naquela execução.
+
 As palavras de inclusão e exclusão são procuradas no título e na descrição. As
 comparações ignoram maiúsculas, minúsculas e acentos. Sem esses argumentos,
 todas as vagas recebidas da API são consideradas relevantes.

@@ -2,17 +2,30 @@
 
 import unicodedata
 from dataclasses import dataclass
+from enum import StrEnum
+import re
 
 from job_monitor.models import Job
+
+
+class JobLevel(StrEnum):
+    """Níveis de senioridade reconhecidos pelo monitor."""
+
+    INTERNSHIP = "internship"
+    JUNIOR = "junior"
+    MID_LEVEL = "mid_level"
+    SENIOR = "senior"
 
 
 @dataclass(frozen=True)
 class JobFilterCriteria:
     """Critérios opcionais utilizados para considerar uma vaga relevante."""
 
+    title_keywords: tuple[str, ...] = ()
     included_keywords: tuple[str, ...] = ()
     excluded_keywords: tuple[str, ...] = ()
     locations: tuple[str, ...] = ()
+    levels: tuple[JobLevel, ...] = ()
 
 
 def _normalize_for_search(value: str) -> str:
@@ -32,17 +45,66 @@ def _normalize_criteria(values: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(value for value in normalized_values if value)
 
 
+def parse_job_level(value: str) -> JobLevel:
+    """Converte um nome de nível em um valor reconhecido pelo monitor."""
+    normalized_value = _normalize_for_search(value)
+    level_names = {
+        "estagio": JobLevel.INTERNSHIP,
+        "estagiario": JobLevel.INTERNSHIP,
+        "intern": JobLevel.INTERNSHIP,
+        "internship": JobLevel.INTERNSHIP,
+        "junior": JobLevel.JUNIOR,
+        "jr": JobLevel.JUNIOR,
+        "pleno": JobLevel.MID_LEVEL,
+        "mid": JobLevel.MID_LEVEL,
+        "mid-level": JobLevel.MID_LEVEL,
+        "senior": JobLevel.SENIOR,
+        "sr": JobLevel.SENIOR,
+    }
+
+    try:
+        return level_names[normalized_value]
+    except KeyError as error:
+        raise ValueError(f"Nível de vaga não reconhecido: {value}") from error
+
+
+def infer_job_level(job: Job) -> JobLevel | None:
+    """Infere o nível quando ele está declarado no título da vaga."""
+    normalized_title = _normalize_for_search(job.title)
+    aliases = (
+        (JobLevel.INTERNSHIP, ("estagio", "estagiario", "intern", "internship")),
+        (JobLevel.JUNIOR, ("junior", "jr")),
+        (JobLevel.MID_LEVEL, ("pleno", "mid-level", "mid level")),
+        (JobLevel.SENIOR, ("senior", "sr")),
+    )
+
+    for level, level_aliases in aliases:
+        if any(
+            re.search(rf"\b{re.escape(alias)}\b", normalized_title)
+            for alias in level_aliases
+        ):
+            return level
+
+    return None
+
+
 def is_relevant(job: Job, criteria: JobFilterCriteria) -> bool:
     """Indica se uma vaga atende a todos os critérios configurados."""
     searchable_text = _normalize_for_search(
         " ".join((job.title, job.description or ""))
     )
     location = _normalize_for_search(job.location or "")
+    title = _normalize_for_search(job.title)
+    title_keywords = _normalize_criteria(criteria.title_keywords)
     included_keywords = _normalize_criteria(criteria.included_keywords)
     excluded_keywords = _normalize_criteria(criteria.excluded_keywords)
     accepted_locations = _normalize_criteria(criteria.locations)
+    job_level = infer_job_level(job)
 
     if any(keyword in searchable_text for keyword in excluded_keywords):
+        return False
+
+    if title_keywords and not any(keyword in title for keyword in title_keywords):
         return False
 
     if included_keywords and not any(
@@ -55,10 +117,13 @@ def is_relevant(job: Job, criteria: JobFilterCriteria) -> bool:
     ):
         return False
 
+
+    if criteria.levels and job_level is not None and job_level not in criteria.levels:
+        return False
+
     return True
 
 
 def filter_jobs(jobs: list[Job], criteria: JobFilterCriteria) -> list[Job]:
     """Retorna somente as vagas que atendem aos critérios."""
     return [job for job in jobs if is_relevant(job, criteria)]
-

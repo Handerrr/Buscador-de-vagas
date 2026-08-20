@@ -2,7 +2,7 @@
 
 import pytest
 
-from job_monitor import load_database_settings
+from job_monitor import JobLevel, load_database_settings, load_job_filter_criteria
 
 
 def test_load_database_settings_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -48,3 +48,26 @@ def test_invalid_database_port_reports_error(monkeypatch: pytest.MonkeyPatch) ->
     with pytest.raises(ValueError, match="DB_PORT deve ser um número inteiro"):
         load_database_settings(load_env_file=False)
 
+
+def test_load_job_filter_criteria_from_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Converte listas do ambiente em critérios estruturados."""
+    monkeypatch.setenv("JOB_TITLES", "Analista de Dados, Data Analyst")
+    monkeypatch.setenv("JOB_INCLUDED_KEYWORDS", "Python, SQL")
+    monkeypatch.setenv("JOB_EXCLUDED_KEYWORDS", "manager, director")
+    monkeypatch.setenv("JOB_LOCATIONS", "Brasil, Brazil")
+    monkeypatch.setenv("JOB_LEVELS", "estágio, junior, pleno, senior")
+
+    criteria = load_job_filter_criteria(load_env_file=False)
+
+    assert criteria.title_keywords == ("Analista de Dados", "Data Analyst")
+    assert criteria.included_keywords == ("Python", "SQL")
+    assert criteria.excluded_keywords == ("manager", "director")
+    assert criteria.locations == ("Brasil", "Brazil")
+    assert criteria.levels == (
+        JobLevel.INTERNSHIP,
+        JobLevel.JUNIOR,
+        JobLevel.MID_LEVEL,
+        JobLevel.SENIOR,
+    )
