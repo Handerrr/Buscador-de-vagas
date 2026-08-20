@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 
 from job_monitor import Job
+from job_monitor.filtering import JobFilterCriteria
 from job_monitor.main import MonitorSummary, run_monitor
 from job_monitor.service import JobProcessingResult, JobProcessingStatus
 import job_monitor.main as main_module
@@ -75,10 +76,15 @@ def test_run_monitor_collects_processes_and_counts_results(
 
     monkeypatch.setattr(main_module, "process_job", fake_process_job)
 
-    summary = run_monitor(tags=("python",), limit=3)
+    summary = run_monitor(
+        tags=("python",),
+        limit=3,
+        criteria=JobFilterCriteria(excluded_keywords=("vaga 3",)),
+    )
 
     assert summary == MonitorSummary(
         fetched=4,
+        relevant=3,
         processed=3,
         inserted=1,
         duplicates=1,
@@ -135,4 +141,3 @@ def test_run_monitor_rejects_invalid_limit_before_external_calls(
         run_monitor(limit=0)
 
     assert external_call_was_made is False
-

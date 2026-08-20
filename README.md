@@ -122,6 +122,21 @@ Para escolher tags e limite:
 python -m job_monitor.main --tags python data --limit 20
 ```
 
+Para aplicar critérios locais de relevância:
+
+```powershell
+python -m job_monitor.main `
+    --tags python data `
+    --include-keywords python sql "data engineer" `
+    --exclude-keywords senior lead `
+    --locations worldwide brazil brasil `
+    --limit 20
+```
+
+As palavras de inclusão e exclusão são procuradas no título e na descrição. As
+comparações ignoram maiúsculas, minúsculas e acentos. Sem esses argumentos,
+todas as vagas recebidas da API são consideradas relevantes.
+
 A execução coleta as vagas do Remote OK, normaliza, valida e armazena as novas
 vagas no PostgreSQL. Ao final, exibe quantas foram inseridas, duplicadas ou
 inválidas.
