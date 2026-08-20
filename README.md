@@ -108,6 +108,24 @@ Execute os testes:
 python -m pytest
 ```
 
+Execute o monitor com os filtros e o limite padrão (`python`, `data` e 50
+vagas):
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m job_monitor.main
+```
+
+Para escolher tags e limite:
+
+```powershell
+python -m job_monitor.main --tags python data --limit 20
+```
+
+A execução coleta as vagas do Remote OK, normaliza, valida e armazena as novas
+vagas no PostgreSQL. Ao final, exibe quantas foram inseridas, duplicadas ou
+inválidas.
+
 Para executar também o teste de integração com o PostgreSQL local:
 
 ```powershell
