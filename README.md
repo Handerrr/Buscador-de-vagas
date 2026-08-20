@@ -25,6 +25,7 @@ Coleta
 |-- src/
 |   `-- job_monitor/
 |       |-- scraper/
+|       |   `-- remote_ok.py
 |       |-- database/
 |       |   |-- connection.py
 |       |   |-- repository.py
@@ -48,7 +49,7 @@ Coleta
 
 Cada diretório possui uma responsabilidade:
 
-- `scraper`: coleta de vagas em fontes externas;
+- `scraper`: coleta de vagas pela API pública do Remote OK;
 - `database`: conexão e estrutura PostgreSQL para armazenamento das vagas;
 - `config.py`: leitura segura das configurações do ambiente;
 - `notifier`: envio futuro de notificações;
@@ -60,10 +61,15 @@ Cada diretório possui uma responsabilidade:
 - `main.py`: ponto de entrada e coordenação dos componentes;
 - `tests`: testes automatizados.
 
-O modelo inicial de vaga, a normalização, a validação e a geração da chave para
-detectar duplicatas já estão implementados. Os componentes de coleta,
-armazenamento e notificação ainda existem apenas para estabelecer a organização
-inicial.
+O modelo, a coleta pelo Remote OK, a normalização, a validação, a prevenção de
+duplicatas e o armazenamento PostgreSQL já estão implementados. O componente de
+notificação ainda existe apenas para estabelecer a organização inicial.
+
+## Fonte de vagas
+
+O primeiro coletor utiliza o feed JSON público e gratuito do Remote OK. A fonte
+deve ser mencionada como `Remote OK`, e cada vaga deve manter o link original
+recebido da API. O projeto não usa o logotipo da plataforma.
 
 ## Preparação do ambiente
 
