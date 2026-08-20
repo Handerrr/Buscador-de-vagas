@@ -28,6 +28,7 @@ Coleta
 |       |-- database/
 |       |-- notifier/
 |       |-- __init__.py
+|       |-- deduplication.py
 |       |-- models.py
 |       |-- normalizer.py
 |       |-- validator.py
@@ -45,15 +46,17 @@ Cada diretório possui uma responsabilidade:
 - `scraper`: coleta de vagas em fontes externas;
 - `database`: armazenamento, consultas e prevenção de duplicatas;
 - `notifier`: envio futuro de notificações;
+- `deduplication.py`: geração da chave única baseada em fonte e URL;
 - `models.py`: representação padronizada dos dados de uma vaga;
 - `normalizer.py`: padronização dos textos coletados;
 - `validator.py`: verificação dos campos obrigatórios, URL e datas;
 - `main.py`: ponto de entrada e coordenação dos componentes;
 - `tests`: testes automatizados.
 
-O modelo inicial de vaga, a normalização e a validação dos dados já estão
-implementados. Os componentes de coleta, armazenamento e notificação ainda
-existem apenas para estabelecer a organização inicial.
+O modelo inicial de vaga, a normalização, a validação e a geração da chave para
+detectar duplicatas já estão implementados. Os componentes de coleta,
+armazenamento e notificação ainda existem apenas para estabelecer a organização
+inicial.
 
 ## Preparação do ambiente
 
