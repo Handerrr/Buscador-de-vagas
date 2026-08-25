@@ -1,0 +1,57 @@
+services:
+  database:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data_v18:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    build: .
+    environment:
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DASHBOARD_DEMO_MODE: ${DASHBOARD_DEMO_MODE:-true}
+    ports:
+      - "127.0.0.1:8501:8501"
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: ["python", "-m", "job_monitor.worker"]
+    environment:
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      JOB_TITLES: ${JOB_TITLES:-}
+      JOB_INCLUDED_KEYWORDS: ${JOB_INCLUDED_KEYWORDS:-}
+      JOB_EXCLUDED_KEYWORDS: ${JOB_EXCLUDED_KEYWORDS:-}
+      JOB_LOCATIONS: ${JOB_LOCATIONS:-}
+      JOB_LEVELS: ${JOB_LEVELS:-}
+      JOB_PREFERRED_KEYWORDS: ${JOB_PREFERRED_KEYWORDS:-}
+      MONITOR_INTERVAL_MINUTES: ${MONITOR_INTERVAL_MINUTES:-60}
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data_v18:

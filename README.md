@@ -209,6 +209,77 @@ Para removê-la futuramente:
 Unregister-ScheduledTask -TaskName "Monitor de Vagas"
 ```
 
+## Painel web local
+
+O painel gratuito em Streamlit consulta as vagas armazenadas no PostgreSQL e
+oferece indicadores, busca por cargo ou empresa e filtros por empresa, fonte e
+localização. A visão geral apresenta gráficos por empresa e localização; as
+outras abas exibem a tabela completa e os detalhes da vaga selecionada.
+
+Para apresentações, `DASHBOARD_DEMO_MODE=true` acrescenta 12 exemplos fictícios
+claramente marcados com a fonte `Demonstração`. Esses registros existem apenas
+na memória do painel: não são gravados no PostgreSQL, não possuem link de
+candidatura e nunca são enviados ao Telegram. Use `false` para exibir somente
+oportunidades reais.
+Para iniciá-lo no Windows:
+
+```powershell
+.\scripts\run_dashboard.ps1
+```
+
+Depois, acesse `http://localhost:8501`. O endereço `localhost` restringe o acesso
+ao próprio computador. O painel mantém os resultados em cache por cinco minutos
+para evitar consultas repetidas ao banco.
+
+## Ambiente com Docker
+
+O `Dockerfile` descreve a imagem Python, enquanto `compose.yaml` conecta três
+serviços: `web`, com Streamlit; `worker`, com a coleta periódica e o Telegram; e
+`database`, com PostgreSQL. O banco utiliza um volume chamado
+`postgres_data_v18`, portanto seus dados sobrevivem à recriação dos contêineres.
+
+O worker executa uma coleta assim que inicia e aguarda 60 minutos antes da
+próxima. O intervalo pode ser alterado em `MONITOR_INTERVAL_MINUTES`, respeitando
+o mínimo de 15 minutos.
+
+Use apenas um agendador por vez. Ao manter o serviço `worker` ativo, desabilite a
+tarefa equivalente do Agendador do Windows para evitar duas coletas independentes:
+
+```powershell
+Disable-ScheduledTask -TaskName "Monitor de Vagas"
+```
+
+Para voltar ao agendamento do Windows, pare o ambiente Docker e reabilite a
+tarefa:
+
+```powershell
+docker compose down
+Enable-ScheduledTask -TaskName "Monitor de Vagas"
+```
+
+Para construir e iniciar o ambiente:
+
+```powershell
+docker compose up --build -d
+```
+
+Para consultar o estado e os logs:
+
+```powershell
+docker compose ps
+docker compose logs web
+docker compose logs worker
+```
+
+Para parar os serviços sem apagar o banco:
+
+```powershell
+docker compose down
+```
+
+O arquivo `.dockerignore` impede que credenciais do `.env`, ambiente virtual,
+histórico do Git e logs locais sejam enviados para a construção da imagem.
+
 Para executar também o teste de integração com o PostgreSQL local:
 
 ```powershell
