@@ -5,10 +5,18 @@ from dataclasses import dataclass
 
 from psycopg import Error as DatabaseError
 
-from job_monitor.config import load_database_settings, load_job_filter_criteria
+from job_monitor.config import (
+    TelegramSettings,
+    load_database_settings,
+    load_job_filter_criteria,
+    load_job_scoring_keywords,
+    load_telegram_settings,
+)
 from job_monitor.database import connect_database, initialize_database
 from job_monitor.filtering import JobFilterCriteria, filter_jobs, parse_job_level
+from job_monitor.notifier import TelegramNotificationError, send_job_notification
 from job_monitor.scraper import RemoteOKError, fetch_remote_ok_jobs
+from job_monitor.scoring import rank_jobs
 from job_monitor.service import JobProcessingStatus, process_job
 
 
@@ -23,9 +31,12 @@ class MonitorSummary:
     fetched: int
     relevant: int
     processed: int
+    top_score: int
     inserted: int
     duplicates: int
     invalid: int
+    notifications_sent: int
+    notification_failures: int
 
 
 def run_monitor(
@@ -33,6 +44,8 @@ def run_monitor(
     tags: tuple[str, ...] = DEFAULT_TAGS,
     limit: int = DEFAULT_LIMIT,
     criteria: JobFilterCriteria | None = None,
+    scoring_keywords: tuple[str, ...] = (),
+    notification_settings: TelegramSettings | None = None,
 ) -> MonitorSummary:
     """Coleta, processa e armazena vagas do Remote OK."""
     if limit <= 0:
@@ -40,20 +53,29 @@ def run_monitor(
 
     jobs = fetch_remote_ok_jobs(tags=tags)
     relevant_jobs = filter_jobs(jobs, criteria or JobFilterCriteria())
-    jobs_to_process = relevant_jobs[:limit]
+    ranked_jobs = rank_jobs(relevant_jobs, scoring_keywords)
+    ranked_jobs_to_process = ranked_jobs[:limit]
     connection = connect_database(load_database_settings())
     inserted = 0
     duplicates = 0
     invalid = 0
+    notifications_sent = 0
+    notification_failures = 0
 
     try:
         initialize_database(connection)
 
-        for job in jobs_to_process:
-            result = process_job(connection, job)
+        for scored_job in ranked_jobs_to_process:
+            result = process_job(connection, scored_job.job)
 
             if result.status is JobProcessingStatus.INSERTED:
                 inserted += 1
+                if notification_settings is not None:
+                    try:
+                        send_job_notification(notification_settings, scored_job)
+                        notifications_sent += 1
+                    except TelegramNotificationError:
+                        notification_failures += 1
             elif result.status is JobProcessingStatus.DUPLICATE:
                 duplicates += 1
             else:
@@ -64,10 +86,13 @@ def run_monitor(
     return MonitorSummary(
         fetched=len(jobs),
         relevant=len(relevant_jobs),
-        processed=len(jobs_to_process),
+        processed=len(ranked_jobs_to_process),
+        top_score=ranked_jobs[0].score if ranked_jobs else 0,
         inserted=inserted,
         duplicates=duplicates,
         invalid=invalid,
+        notifications_sent=notifications_sent,
+        notification_failures=notification_failures,
     )
 
 
@@ -85,6 +110,12 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         type=int,
         default=DEFAULT_LIMIT,
         help="quantidade máxima de vagas processadas",
+    )
+    parser.add_argument(
+        "--preferred-keywords",
+        nargs="+",
+        default=None,
+        help="tecnologias e termos usados para pontuar as vagas",
     )
     parser.add_argument(
         "--titles",
@@ -116,6 +147,11 @@ def _create_argument_parser() -> argparse.ArgumentParser:
         default=None,
         help="níveis aceitos: estágio, júnior, pleno e sênior",
     )
+    parser.add_argument(
+        "--no-notifications",
+        action="store_true",
+        help="executa o monitor sem enviar mensagens pelo Telegram",
+    )
     return parser
 
 
@@ -125,6 +161,10 @@ def main() -> int:
 
     try:
         configured_criteria = load_job_filter_criteria()
+        configured_scoring_keywords = load_job_scoring_keywords()
+        notification_settings = (
+            None if arguments.no_notifications else load_telegram_settings()
+        )
         criteria = JobFilterCriteria(
             title_keywords=(
                 tuple(arguments.titles)
@@ -156,6 +196,12 @@ def main() -> int:
             tags=tuple(arguments.tags),
             limit=arguments.limit,
             criteria=criteria,
+            scoring_keywords=(
+                tuple(arguments.preferred_keywords)
+                if arguments.preferred_keywords is not None
+                else configured_scoring_keywords
+            ),
+            notification_settings=notification_settings,
         )
     except (DatabaseError, RemoteOKError, ValueError) as error:
         print(f"Falha ao executar o monitor: {error}")
@@ -165,9 +211,12 @@ def main() -> int:
     print(f"  Recebidas da API: {summary.fetched}")
     print(f"  Relevantes: {summary.relevant}")
     print(f"  Processadas: {summary.processed}")
+    print(f"  Maior pontuação: {summary.top_score}")
     print(f"  Inseridas: {summary.inserted}")
     print(f"  Duplicadas: {summary.duplicates}")
     print(f"  Inválidas: {summary.invalid}")
+    print(f"  Notificações enviadas: {summary.notifications_sent}")
+    print(f"  Falhas de notificação: {summary.notification_failures}")
     return 0
 
 

@@ -1,9 +1,9 @@
 """Filtragem de vagas segundo critérios definidos pelo usuário."""
 
+import re
 import unicodedata
 from dataclasses import dataclass
 from enum import StrEnum
-import re
 
 from job_monitor.models import Job
 
@@ -28,7 +28,7 @@ class JobFilterCriteria:
     levels: tuple[JobLevel, ...] = ()
 
 
-def _normalize_for_search(value: str) -> str:
+def normalize_for_search(value: str) -> str:
     """Padroniza caixa, acentos e espaços para comparação textual."""
     decomposed_value = unicodedata.normalize("NFKD", value.casefold())
     without_accents = "".join(
@@ -41,13 +41,13 @@ def _normalize_for_search(value: str) -> str:
 
 def _normalize_criteria(values: tuple[str, ...]) -> tuple[str, ...]:
     """Normaliza critérios e descarta valores sem conteúdo."""
-    normalized_values = (_normalize_for_search(value) for value in values)
+    normalized_values = (normalize_for_search(value) for value in values)
     return tuple(value for value in normalized_values if value)
 
 
 def parse_job_level(value: str) -> JobLevel:
     """Converte um nome de nível em um valor reconhecido pelo monitor."""
-    normalized_value = _normalize_for_search(value)
+    normalized_value = normalize_for_search(value)
     level_names = {
         "estagio": JobLevel.INTERNSHIP,
         "estagiario": JobLevel.INTERNSHIP,
@@ -70,7 +70,7 @@ def parse_job_level(value: str) -> JobLevel:
 
 def infer_job_level(job: Job) -> JobLevel | None:
     """Infere o nível quando ele está declarado no título da vaga."""
-    normalized_title = _normalize_for_search(job.title)
+    normalized_title = normalize_for_search(job.title)
     aliases = (
         (JobLevel.INTERNSHIP, ("estagio", "estagiario", "intern", "internship")),
         (JobLevel.JUNIOR, ("junior", "jr")),
@@ -90,11 +90,11 @@ def infer_job_level(job: Job) -> JobLevel | None:
 
 def is_relevant(job: Job, criteria: JobFilterCriteria) -> bool:
     """Indica se uma vaga atende a todos os critérios configurados."""
-    searchable_text = _normalize_for_search(
+    searchable_text = normalize_for_search(
         " ".join((job.title, job.description or ""))
     )
-    location = _normalize_for_search(job.location or "")
-    title = _normalize_for_search(job.title)
+    location = normalize_for_search(job.location or "")
+    title = normalize_for_search(job.title)
     title_keywords = _normalize_criteria(criteria.title_keywords)
     included_keywords = _normalize_criteria(criteria.included_keywords)
     excluded_keywords = _normalize_criteria(criteria.excluded_keywords)
@@ -116,7 +116,6 @@ def is_relevant(job: Job, criteria: JobFilterCriteria) -> bool:
         accepted_location in location for accepted_location in accepted_locations
     ):
         return False
-
 
     if criteria.levels and job_level is not None and job_level not in criteria.levels:
         return False

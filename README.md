@@ -52,7 +52,7 @@ Cada diretório possui uma responsabilidade:
 - `scraper`: coleta de vagas pela API pública do Remote OK;
 - `database`: conexão e estrutura PostgreSQL para armazenamento das vagas;
 - `config.py`: leitura segura das configurações do ambiente;
-- `notifier`: envio futuro de notificações;
+- `notifier`: formatação e envio de notificações pelo Telegram;
 - `deduplication.py`: geração da chave única baseada em fonte e URL;
 - `models.py`: representação padronizada dos dados de uma vaga;
 - `normalizer.py`: padronização dos textos coletados;
@@ -62,8 +62,8 @@ Cada diretório possui uma responsabilidade:
 - `tests`: testes automatizados.
 
 O modelo, a coleta pelo Remote OK, a normalização, a validação, a prevenção de
-duplicatas e o armazenamento PostgreSQL já estão implementados. O componente de
-notificação ainda existe apenas para estabelecer a organização inicial.
+duplicatas, o armazenamento PostgreSQL e as notificações pelo Telegram já estão
+implementados.
 
 ## Fonte de vagas
 
@@ -139,13 +139,75 @@ aliases em português e inglês, os níveis estágio, júnior, pleno e sênior, 
 localizações `Brasil` e `Brazil`. Argumentos informados no terminal substituem
 a configuração correspondente naquela execução.
 
+As vagas relevantes também são ordenadas por tecnologias preferidas. Cada termo
+encontrado no título soma 3 pontos; quando aparece somente na descrição, soma 1
+ponto. A maior pontuação é processada primeiro, antes da aplicação do limite.
+
+Os termos padrão são Python, SQL, Power BI, PostgreSQL, ETL, Machine Learning,
+Inteligência Artificial, Engenharia de Dados, AWS e Azure. Eles podem ser
+substituídos em uma execução com `--preferred-keywords`.
+
 As palavras de inclusão e exclusão são procuradas no título e na descrição. As
 comparações ignoram maiúsculas, minúsculas e acentos. Sem esses argumentos,
 todas as vagas recebidas da API são consideradas relevantes.
 
 A execução coleta as vagas do Remote OK, normaliza, valida e armazena as novas
-vagas no PostgreSQL. Ao final, exibe quantas foram inseridas, duplicadas ou
-inválidas.
+vagas no PostgreSQL. Cada vaga realmente inserida gera uma mensagem no Telegram;
+duplicatas e vagas inválidas não geram alertas. Ao final, o terminal também exibe
+quantas notificações foram enviadas ou falharam.
+
+Para executar temporariamente sem enviar mensagens:
+
+```powershell
+python -m job_monitor.main --no-notifications
+```
+
+Uma falha momentânea do Telegram não interrompe a coleta nem desfaz a vaga já
+salva. A falha aparece no resumo da execução.
+
+## Execução automática no Windows
+
+O script `scripts/run_monitor.ps1` localiza o projeto a partir da própria pasta,
+usa o Python instalado em `.venv`, configura `src` no `PYTHONPATH` e executa o
+monitor. Ele pode ser testado manualmente sem notificações com:
+
+```powershell
+.\scripts\run_monitor.ps1 -NoNotifications
+```
+
+O script `scripts/install_scheduled_task.ps1` registra uma tarefa gratuita no
+Agendador de Tarefas do Windows. Por padrão, ela começa aproximadamente um minuto
+depois da instalação e se repete a cada 60 minutos:
+
+```powershell
+.\scripts\install_scheduled_task.ps1
+```
+
+Para escolher outro intervalo, respeitando o mínimo de 15 minutos:
+
+```powershell
+.\scripts\install_scheduled_task.ps1 -IntervalMinutes 30
+```
+
+A opção `-StartWhenAvailable` permite que uma execução perdida comece quando o
+computador voltar a estar disponível. A opção `IgnoreNew` impede duas execuções
+simultâneas caso uma coleta ainda esteja em andamento.
+
+Cada execução grava sua saída em `logs/monitor-AAAA-MM-DD.log`. O arquivo é
+acumulado durante o dia e permite verificar o resultado das execuções em segundo
+plano. A pasta `logs` é local e está ignorada pelo Git.
+
+Para conferir o estado da tarefa:
+
+```powershell
+Get-ScheduledTask -TaskName "Monitor de Vagas"
+```
+
+Para removê-la futuramente:
+
+```powershell
+Unregister-ScheduledTask -TaskName "Monitor de Vagas"
+```
 
 Para executar também o teste de integração com o PostgreSQL local:
 

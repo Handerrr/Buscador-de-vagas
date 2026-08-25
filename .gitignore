@@ -14,9 +14,11 @@ __pycache__/
 .coverage
 htmlcov/
 
+# Registros produzidos pelas execuções automáticas
+logs/
+
 # Configurações locais de editores e sistema operacional
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
-

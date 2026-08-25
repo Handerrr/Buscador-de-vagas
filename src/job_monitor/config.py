@@ -17,6 +17,14 @@ class DatabaseSettings:
     password: str
 
 
+@dataclass(frozen=True)
+class TelegramSettings:
+    """Configurações necessárias para enviar mensagens pelo Telegram."""
+
+    bot_token: str
+    chat_id: str
+
+
 def load_database_settings(*, load_env_file: bool = True) -> DatabaseSettings:
     """Carrega e valida as configurações de conexão com o banco de dados."""
     if load_env_file:
@@ -70,4 +78,37 @@ def load_job_filter_criteria(*, load_env_file: bool = True) -> JobFilterCriteria
         excluded_keywords=_split_setting(os.getenv("JOB_EXCLUDED_KEYWORDS")),
         locations=_split_setting(os.getenv("JOB_LOCATIONS")),
         levels=tuple(parse_job_level(level) for level in level_names),
+    )
+
+
+def load_job_scoring_keywords(*, load_env_file: bool = True) -> tuple[str, ...]:
+    """Carrega os termos usados para pontuar e ordenar as vagas."""
+    if load_env_file:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+
+    return _split_setting(os.getenv("JOB_PREFERRED_KEYWORDS"))
+
+
+def load_telegram_settings(*, load_env_file: bool = True) -> TelegramSettings:
+    """Carrega e valida as configurações do bot do Telegram."""
+    if load_env_file:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+
+    required_variables = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID")
+    missing_variables = [
+        variable for variable in required_variables if not os.getenv(variable)
+    ]
+    if missing_variables:
+        variable_names = ", ".join(missing_variables)
+        raise ValueError(
+            f"Variáveis do Telegram obrigatórias ausentes: {variable_names}"
+        )
+
+    return TelegramSettings(
+        bot_token=os.environ["TELEGRAM_BOT_TOKEN"],
+        chat_id=os.environ["TELEGRAM_CHAT_ID"],
     )

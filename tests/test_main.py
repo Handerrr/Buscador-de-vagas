@@ -5,8 +5,10 @@ from typing import Any
 import pytest
 
 from job_monitor import Job
+from job_monitor.config import TelegramSettings
 from job_monitor.filtering import JobFilterCriteria
 from job_monitor.main import MonitorSummary, run_monitor
+from job_monitor.notifier import TelegramNotificationError
 from job_monitor.service import JobProcessingResult, JobProcessingStatus
 import job_monitor.main as main_module
 
@@ -46,6 +48,7 @@ def test_run_monitor_collects_processes_and_counts_results(
     connection = FakeConnection()
     initialized_connections: list[Any] = []
     processed_jobs: list[Job] = []
+    notified_jobs: list[Job] = []
 
     monkeypatch.setattr(
         main_module,
@@ -75,23 +78,69 @@ def test_run_monitor_collects_processes_and_counts_results(
         return JobProcessingResult(status=next(statuses), job=job)
 
     monkeypatch.setattr(main_module, "process_job", fake_process_job)
+    monkeypatch.setattr(
+        main_module,
+        "send_job_notification",
+        lambda settings, scored_job: notified_jobs.append(scored_job.job),
+    )
 
     summary = run_monitor(
         tags=("python",),
         limit=3,
         criteria=JobFilterCriteria(excluded_keywords=("vaga 3",)),
+        scoring_keywords=("vaga 1",),
+        notification_settings=TelegramSettings("test-token", "123"),
     )
 
     assert summary == MonitorSummary(
         fetched=4,
         relevant=3,
         processed=3,
+        top_score=3,
         inserted=1,
         duplicates=1,
         invalid=1,
+        notifications_sent=1,
+        notification_failures=0,
     )
     assert initialized_connections == [connection]
-    assert processed_jobs == jobs[:3]
+    assert processed_jobs == [jobs[1], jobs[0], jobs[2]]
+    assert notified_jobs == [jobs[1]]
+    assert connection.was_closed is True
+
+
+def test_run_monitor_counts_notification_failure_without_stopping(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Mantém a vaga inserida quando o Telegram está indisponível."""
+    job = _create_job(1)
+    connection = FakeConnection()
+    monkeypatch.setattr(main_module, "fetch_remote_ok_jobs", lambda *, tags: [job])
+    monkeypatch.setattr(main_module, "load_database_settings", lambda: object())
+    monkeypatch.setattr(main_module, "connect_database", lambda settings: connection)
+    monkeypatch.setattr(main_module, "initialize_database", lambda connection: None)
+    monkeypatch.setattr(
+        main_module,
+        "process_job",
+        lambda connection, received_job: JobProcessingResult(
+            status=JobProcessingStatus.INSERTED,
+            job=received_job,
+        ),
+    )
+
+    def fail_notification(settings: Any, scored_job: Any) -> None:
+        raise TelegramNotificationError("Telegram indisponível")
+
+    monkeypatch.setattr(main_module, "send_job_notification", fail_notification)
+
+    summary = run_monitor(
+        limit=1,
+        notification_settings=TelegramSettings("test-token", "123"),
+    )
+
+    assert summary.inserted == 1
+    assert summary.notifications_sent == 0
+    assert summary.notification_failures == 1
     assert connection.was_closed is True
 
 

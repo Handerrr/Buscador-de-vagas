@@ -2,7 +2,14 @@
 
 import pytest
 
-from job_monitor import JobLevel, load_database_settings, load_job_filter_criteria
+from job_monitor import (
+    JobLevel,
+    TelegramSettings,
+    load_database_settings,
+    load_job_filter_criteria,
+    load_job_scoring_keywords,
+    load_telegram_settings,
+)
 
 
 def test_load_database_settings_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -70,4 +77,30 @@ def test_load_job_filter_criteria_from_environment(
         JobLevel.JUNIOR,
         JobLevel.MID_LEVEL,
         JobLevel.SENIOR,
+    )
+
+
+def test_load_job_scoring_keywords_from_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Carrega os termos de pontuação preservando sua ordem."""
+    monkeypatch.setenv("JOB_PREFERRED_KEYWORDS", "Python, SQL, Power BI")
+
+    assert load_job_scoring_keywords(load_env_file=False) == (
+        "Python",
+        "SQL",
+        "Power BI",
+    )
+
+
+def test_load_telegram_settings_from_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Carrega token e chat sem expor seus valores em mensagens."""
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "123456")
+
+    assert load_telegram_settings(load_env_file=False) == TelegramSettings(
+        bot_token="test-token",
+        chat_id="123456",
     )
