@@ -25,7 +25,8 @@ Coleta
 |-- src/
 |   `-- job_monitor/
 |       |-- scraper/
-|       |   `-- remote_ok.py
+|       |   |-- remote_ok.py
+|       |   `-- remotive.py
 |       |-- database/
 |       |   |-- connection.py
 |       |   |-- repository.py
@@ -49,7 +50,7 @@ Coleta
 
 Cada diretório possui uma responsabilidade:
 
-- `scraper`: coleta de vagas pela API pública do Remote OK;
+- `scraper`: coleta de vagas pelas APIs públicas do Remote OK e da Remotive;
 - `database`: conexão e estrutura PostgreSQL para armazenamento das vagas;
 - `config.py`: leitura segura das configurações do ambiente;
 - `notifier`: formatação e envio de notificações pelo Telegram;
@@ -61,15 +62,17 @@ Cada diretório possui uma responsabilidade:
 - `main.py`: ponto de entrada e coordenação dos componentes;
 - `tests`: testes automatizados.
 
-O modelo, a coleta pelo Remote OK, a normalização, a validação, a prevenção de
+O modelo, a coleta pelo Remote OK e pela Remotive, a normalização, a validação, a prevenção de
 duplicatas, o armazenamento PostgreSQL e as notificações pelo Telegram já estão
 implementados.
 
 ## Fonte de vagas
 
-O primeiro coletor utiliza o feed JSON público e gratuito do Remote OK. A fonte
-deve ser mencionada como `Remote OK`, e cada vaga deve manter o link original
-recebido da API. O projeto não usa o logotipo da plataforma.
+O projeto utiliza os feeds JSON públicos e gratuitos do Remote OK e da Remotive.
+Cada vaga preserva o nome da fonte e o link original recebido da respectiva API.
+O projeto não usa os logotipos das plataformas. A Remotive recomenda no máximo
+quatro consultas diárias; a automação em intervalos de seis horas respeita esse
+limite.
 
 ## Preparação do ambiente
 
@@ -136,7 +139,9 @@ python -m job_monitor.main `
 Por padrão, os critérios são carregados do `.env`. O projeto está configurado
 com 15 famílias de cargos comuns em tecnologia e dados no Brasil, incluindo
 aliases em português e inglês, os níveis estágio, júnior, pleno e sênior, e as
-localizações `Brasil` e `Brazil`. Argumentos informados no terminal substituem
+localizações `Brasil` e `Brazil`. Regiões remotas que incluem candidatos do
+Brasil, como `Worldwide`, `Americas`, `Latin America` e `South America`, também
+são aceitas. Argumentos informados no terminal substituem
 a configuração correspondente naquela execução.
 
 As vagas relevantes também são ordenadas por tecnologias preferidas. Cada termo
@@ -151,7 +156,7 @@ As palavras de inclusão e exclusão são procuradas no título e na descrição
 comparações ignoram maiúsculas, minúsculas e acentos. Sem esses argumentos,
 todas as vagas recebidas da API são consideradas relevantes.
 
-A execução coleta as vagas do Remote OK, normaliza, valida e armazena as novas
+A execução reúne as vagas do Remote OK e da Remotive, normaliza, valida e armazena as novas
 vagas no PostgreSQL. Cada vaga realmente inserida gera uma mensagem no Telegram;
 duplicatas e vagas inválidas não geram alertas. Ao final, o terminal também exibe
 quantas notificações foram enviadas ou falharam.

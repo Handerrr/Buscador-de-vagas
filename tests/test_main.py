@@ -55,6 +55,7 @@ def test_run_monitor_collects_processes_and_counts_results(
         "fetch_remote_ok_jobs",
         lambda *, tags: jobs,
     )
+    monkeypatch.setattr(main_module, "fetch_remotive_jobs", lambda: [])
     monkeypatch.setattr(main_module, "load_database_settings", lambda: object())
     monkeypatch.setattr(
         main_module,
@@ -116,6 +117,7 @@ def test_run_monitor_counts_notification_failure_without_stopping(
     job = _create_job(1)
     connection = FakeConnection()
     monkeypatch.setattr(main_module, "fetch_remote_ok_jobs", lambda *, tags: [job])
+    monkeypatch.setattr(main_module, "fetch_remotive_jobs", lambda: [])
     monkeypatch.setattr(main_module, "load_database_settings", lambda: object())
     monkeypatch.setattr(main_module, "connect_database", lambda settings: connection)
     monkeypatch.setattr(main_module, "initialize_database", lambda connection: None)
@@ -154,6 +156,7 @@ def test_run_monitor_closes_connection_when_processing_fails(
         "fetch_remote_ok_jobs",
         lambda *, tags: [_create_job(1)],
     )
+    monkeypatch.setattr(main_module, "fetch_remotive_jobs", lambda: [])
     monkeypatch.setattr(main_module, "load_database_settings", lambda: object())
     monkeypatch.setattr(
         main_module,

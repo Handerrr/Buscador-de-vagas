@@ -45,6 +45,28 @@ def _normalize_criteria(values: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(value for value in normalized_values if value)
 
 
+def _location_matches(location: str, accepted_locations: tuple[str, ...]) -> bool:
+    """Reconhece regiões remotas que permitem trabalhar a partir do Brasil."""
+    if any(accepted_location in location for accepted_location in accepted_locations):
+        return True
+
+    brazil_is_requested = any(
+        accepted_location in {"brasil", "brazil"}
+        for accepted_location in accepted_locations
+    )
+    brazil_eligible_regions = (
+        "worldwide",
+        "anywhere",
+        "global",
+        "americas",
+        "latin america",
+        "south america",
+    )
+    return brazil_is_requested and any(
+        region in location for region in brazil_eligible_regions
+    )
+
+
 def parse_job_level(value: str) -> JobLevel:
     """Converte um nome de nível em um valor reconhecido pelo monitor."""
     normalized_value = normalize_for_search(value)
@@ -112,9 +134,7 @@ def is_relevant(job: Job, criteria: JobFilterCriteria) -> bool:
     ):
         return False
 
-    if accepted_locations and not any(
-        accepted_location in location for accepted_location in accepted_locations
-    ):
+    if accepted_locations and not _location_matches(location, accepted_locations):
         return False
 
     if criteria.levels and job_level is not None and job_level not in criteria.levels:

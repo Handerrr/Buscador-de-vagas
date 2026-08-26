@@ -70,6 +70,25 @@ def test_location_must_match_when_configured() -> None:
     assert is_relevant(_create_job(location="Lisboa, Portugal"), criteria) is False
 
 
+def test_brazil_filter_accepts_remote_regions_that_include_brazil() -> None:
+    """Aceita regiões globais ou americanas onde candidatos do Brasil podem atuar."""
+    criteria = JobFilterCriteria(locations=("Brasil", "Brazil"))
+
+    assert is_relevant(_create_job(location="Worldwide"), criteria) is True
+    assert is_relevant(_create_job(location="Anywhere"), criteria) is True
+    assert is_relevant(_create_job(location="Americas, Europe, Israel"), criteria) is True
+    assert is_relevant(_create_job(location="Latin America"), criteria) is True
+    assert is_relevant(_create_job(location="South America"), criteria) is True
+
+
+def test_brazil_filter_rejects_incompatible_remote_region() -> None:
+    """Não trata uma vaga limitada a outro país ou continente como brasileira."""
+    criteria = JobFilterCriteria(locations=("Brasil", "Brazil"))
+
+    assert is_relevant(_create_job(location="United States only"), criteria) is False
+    assert is_relevant(_create_job(location="Europe"), criteria) is False
+
+
 def test_filter_jobs_preserves_only_relevant_jobs() -> None:
     """Mantém a ordem original ao produzir a lista filtrada."""
     python_job = _create_job()

@@ -15,7 +15,12 @@ from job_monitor.config import (
 from job_monitor.database import connect_database, initialize_database
 from job_monitor.filtering import JobFilterCriteria, filter_jobs, parse_job_level
 from job_monitor.notifier import TelegramNotificationError, send_job_notification
-from job_monitor.scraper import RemoteOKError, fetch_remote_ok_jobs
+from job_monitor.scraper import (
+    RemoteOKError,
+    RemotiveError,
+    fetch_remote_ok_jobs,
+    fetch_remotive_jobs,
+)
 from job_monitor.scoring import rank_jobs
 from job_monitor.service import JobProcessingStatus, process_job
 
@@ -47,11 +52,11 @@ def run_monitor(
     scoring_keywords: tuple[str, ...] = (),
     notification_settings: TelegramSettings | None = None,
 ) -> MonitorSummary:
-    """Coleta, processa e armazena vagas do Remote OK."""
+    """Coleta, processa e armazena vagas de todas as fontes configuradas."""
     if limit <= 0:
         raise ValueError("O limite deve ser maior que zero.")
 
-    jobs = fetch_remote_ok_jobs(tags=tags)
+    jobs = [*fetch_remote_ok_jobs(tags=tags), *fetch_remotive_jobs()]
     relevant_jobs = filter_jobs(jobs, criteria or JobFilterCriteria())
     ranked_jobs = rank_jobs(relevant_jobs, scoring_keywords)
     ranked_jobs_to_process = ranked_jobs[:limit]
@@ -203,7 +208,7 @@ def main() -> int:
             ),
             notification_settings=notification_settings,
         )
-    except (DatabaseError, RemoteOKError, ValueError) as error:
+    except (DatabaseError, RemoteOKError, RemotiveError, ValueError) as error:
         print(f"Falha ao executar o monitor: {error}")
         return 1
 
