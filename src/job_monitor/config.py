@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass
+from urllib.parse import parse_qs, urlsplit
 
 from job_monitor.filtering import JobFilterCriteria, parse_job_level
 
@@ -15,6 +16,7 @@ class DatabaseSettings:
     name: str
     user: str
     password: str
+    connection_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -31,6 +33,31 @@ def load_database_settings(*, load_env_file: bool = True) -> DatabaseSettings:
         from dotenv import load_dotenv
 
         load_dotenv()
+
+    connection_url = os.getenv("DATABASE_URL")
+    if connection_url:
+        try:
+            parsed_url = urlsplit(connection_url)
+            port = parsed_url.port or 5432
+        except ValueError as error:
+            raise ValueError("DATABASE_URL possui uma porta inválida.") from error
+
+        if parsed_url.scheme not in {"postgres", "postgresql"}:
+            raise ValueError("DATABASE_URL deve usar o protocolo postgres ou postgresql.")
+        if not parsed_url.hostname or not parsed_url.path.strip("/"):
+            raise ValueError("DATABASE_URL deve informar servidor e banco de dados.")
+        ssl_mode = parse_qs(parsed_url.query).get("sslmode", [""])[0]
+        if ssl_mode not in {"require", "verify-ca", "verify-full"}:
+            raise ValueError("DATABASE_URL pública deve exigir uma conexão SSL.")
+
+        return DatabaseSettings(
+            host=parsed_url.hostname,
+            port=port,
+            name=parsed_url.path.strip("/"),
+            user=parsed_url.username or "",
+            password=parsed_url.password or "",
+            connection_url=connection_url,
+        )
 
     required_variables = ("DB_NAME", "DB_USER", "DB_PASSWORD")
     missing_variables = [

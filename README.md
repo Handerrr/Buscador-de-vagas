@@ -280,6 +280,50 @@ docker compose down
 O arquivo `.dockerignore` impede que credenciais do `.env`, ambiente virtual,
 histórico do Git e logs locais sejam enviados para a construção da imagem.
 
+## Publicação gratuita
+
+A arquitetura pública recomendada usa Streamlit Community Cloud para o painel,
+Neon para o PostgreSQL e GitHub Actions para executar a coleta. O Docker continua
+disponível para desenvolvimento local e para demonstrar a portabilidade.
+
+O banco gerenciado fornece uma `DATABASE_URL`. A aplicação aceita essa variável
+com prioridade sobre `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` e `DB_PASSWORD`.
+Por segurança, a URL pública deve conter `sslmode=require`, `verify-ca` ou
+`verify-full`.
+
+No Streamlit Community Cloud, selecione o repositório, a branch `main`, Python
+3.12 e o arquivo `streamlit_app.py`. Cadastre apenas estes valores em **Secrets**:
+
+```toml
+DATABASE_URL = "postgresql://usuario:senha@servidor/banco?sslmode=require"
+DASHBOARD_DEMO_MODE = "true"
+```
+
+O arquivo `.streamlit/secrets.toml.example` serve como modelo. O arquivo real
+`secrets.toml` está ignorado pelo Git.
+
+No GitHub, acesse **Settings > Secrets and variables > Actions**. Cadastre como
+**Secrets**, que são confidenciais:
+
+- `DATABASE_URL`;
+- `TELEGRAM_BOT_TOKEN`;
+- `TELEGRAM_CHAT_ID`.
+
+Cadastre como **Variables**, que controlam os filtros e não são credenciais:
+
+- `MONITOR_ENABLED`, inicialmente `false` e alterado para `true` após configurar
+  todos os Secrets;
+- `JOB_TITLES`;
+- `JOB_INCLUDED_KEYWORDS`;
+- `JOB_EXCLUDED_KEYWORDS`;
+- `JOB_LOCATIONS`;
+- `JOB_LEVELS`;
+- `JOB_PREFERRED_KEYWORDS`.
+
+Os valores de filtro podem ser copiados de `.env.example`. O workflow valida os
+itens obrigatórios antes da coleta, pode ser acionado manualmente e também roda
+a cada seis horas pelo arquivo `.github/workflows/monitor.yml`.
+
 Para executar também o teste de integração com o PostgreSQL local:
 
 ```powershell

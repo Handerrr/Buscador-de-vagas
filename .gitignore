@@ -4,6 +4,7 @@ venv/
 
 # Variáveis de ambiente e credenciais locais
 .env
+.streamlit/secrets.toml
 
 # Cache e arquivos gerados pelo Python
 __pycache__/

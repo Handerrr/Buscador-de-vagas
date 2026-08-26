@@ -19,6 +19,7 @@ def test_load_database_settings_from_environment(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setenv("DB_NAME", "job_monitor_test")
     monkeypatch.setenv("DB_USER", "test_user")
     monkeypatch.setenv("DB_PASSWORD", "test_password")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
 
     settings = load_database_settings(load_env_file=False)
 
@@ -27,6 +28,48 @@ def test_load_database_settings_from_environment(monkeypatch: pytest.MonkeyPatch
     assert settings.name == "job_monitor_test"
     assert settings.user == "test_user"
     assert settings.password == "test_password"
+    assert settings.connection_url is None
+
+
+def test_database_url_has_priority_over_individual_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Usa a conexão única fornecida por bancos PostgreSQL gerenciados."""
+    connection_url = (
+        "postgresql://cloud_user:cloud_password@db.example.com:5433/portfolio"
+        "?sslmode=require"
+    )
+    monkeypatch.setenv("DATABASE_URL", connection_url)
+
+    settings = load_database_settings(load_env_file=False)
+
+    assert settings.host == "db.example.com"
+    assert settings.port == 5433
+    assert settings.name == "portfolio"
+    assert settings.connection_url == connection_url
+
+
+@pytest.mark.parametrize(
+    "connection_url",
+    [
+        "https://db.example.com/portfolio",
+        "postgresql:///portfolio",
+        "postgresql://db.example.com",
+        "postgresql://db.example.com:invalid/portfolio",
+        "postgresql://user:password@db.example.com/portfolio",
+    ],
+)
+def test_invalid_database_url_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+    connection_url: str,
+) -> None:
+    """Rejeita URLs incompletas sem incluir seu conteúdo no erro."""
+    monkeypatch.setenv("DATABASE_URL", connection_url)
+
+    with pytest.raises(ValueError) as captured_error:
+        load_database_settings(load_env_file=False)
+
+    assert connection_url not in str(captured_error.value)
 
 
 def test_missing_required_settings_report_variables(
@@ -35,6 +78,7 @@ def test_missing_required_settings_report_variables(
     """Informa quais configurações obrigatórias não foram definidas."""
     for variable in ("DB_NAME", "DB_USER", "DB_PASSWORD"):
         monkeypatch.delenv(variable, raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
 
     with pytest.raises(ValueError) as captured_error:
         load_database_settings(load_env_file=False)
@@ -51,6 +95,7 @@ def test_invalid_database_port_reports_error(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setenv("DB_NAME", "job_monitor_test")
     monkeypatch.setenv("DB_USER", "test_user")
     monkeypatch.setenv("DB_PASSWORD", "test_password")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
 
     with pytest.raises(ValueError, match="DB_PORT deve ser um número inteiro"):
         load_database_settings(load_env_file=False)

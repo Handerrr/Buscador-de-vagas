@@ -9,6 +9,9 @@ def connect_database(settings: DatabaseSettings) -> Any:
     """Abre e devolve uma conexão com o PostgreSQL."""
     import psycopg
 
+    if settings.connection_url is not None:
+        return psycopg.connect(settings.connection_url)
+
     return psycopg.connect(
         host=settings.host,
         port=settings.port,
@@ -16,4 +19,3 @@ def connect_database(settings: DatabaseSettings) -> Any:
         user=settings.user,
         password=settings.password,
     )
-
