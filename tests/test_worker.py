@@ -5,6 +5,7 @@ from threading import Event
 import pytest
 
 from job_monitor import worker
+from job_monitor.scraper import RemotiveError
 
 
 def test_load_worker_interval_minutes(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -44,3 +45,19 @@ def test_run_worker_executes_immediately_and_waits() -> None:
     )
 
     assert executions == 1
+
+
+def test_execute_cycle_handles_remotive_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Registra uma falha da segunda fonte sem encerrar o worker com exceção."""
+    monkeypatch.setattr(worker, "load_job_filter_criteria", lambda: object())
+    monkeypatch.setattr(worker, "load_job_scoring_keywords", lambda: ())
+    monkeypatch.setattr(worker, "load_telegram_settings", lambda: object())
+
+    def fail_monitor(**kwargs: object) -> None:
+        raise RemotiveError("Remotive indisponível")
+
+    monkeypatch.setattr(worker, "run_monitor", fail_monitor)
+
+    assert worker.execute_monitor_cycle() == 1

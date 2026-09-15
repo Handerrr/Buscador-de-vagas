@@ -27,12 +27,27 @@ class TelegramSettings:
     chat_id: str
 
 
-def load_database_settings(*, load_env_file: bool = True) -> DatabaseSettings:
-    """Carrega e valida as configurações de conexão com o banco de dados."""
+def _prepare_environment(load_env_file: bool) -> None:
     if load_env_file:
         from dotenv import load_dotenv
 
         load_dotenv()
+
+
+def _require_environment(
+    *variable_names: str,
+    context: str = "de ambiente",
+) -> None:
+    missing = [name for name in variable_names if not os.getenv(name)]
+    if missing:
+        raise ValueError(
+            f"Variáveis {context} obrigatórias ausentes: {', '.join(missing)}"
+        )
+
+
+def load_database_settings(*, load_env_file: bool = True) -> DatabaseSettings:
+    """Carrega e valida as configurações de conexão com o banco de dados."""
+    _prepare_environment(load_env_file)
 
     connection_url = os.getenv("DATABASE_URL")
     if connection_url:
@@ -59,14 +74,7 @@ def load_database_settings(*, load_env_file: bool = True) -> DatabaseSettings:
             connection_url=connection_url,
         )
 
-    required_variables = ("DB_NAME", "DB_USER", "DB_PASSWORD")
-    missing_variables = [
-        variable for variable in required_variables if not os.getenv(variable)
-    ]
-
-    if missing_variables:
-        variable_names = ", ".join(missing_variables)
-        raise ValueError(f"Variáveis de ambiente obrigatórias ausentes: {variable_names}")
+    _require_environment("DB_NAME", "DB_USER", "DB_PASSWORD")
 
     port_text = os.getenv("DB_PORT", "5432")
     try:
@@ -93,10 +101,7 @@ def _split_setting(value: str | None) -> tuple[str, ...]:
 
 def load_job_filter_criteria(*, load_env_file: bool = True) -> JobFilterCriteria:
     """Carrega os critérios de relevância definidos no ambiente."""
-    if load_env_file:
-        from dotenv import load_dotenv
-
-        load_dotenv()
+    _prepare_environment(load_env_file)
 
     level_names = _split_setting(os.getenv("JOB_LEVELS"))
     return JobFilterCriteria(
@@ -110,30 +115,19 @@ def load_job_filter_criteria(*, load_env_file: bool = True) -> JobFilterCriteria
 
 def load_job_scoring_keywords(*, load_env_file: bool = True) -> tuple[str, ...]:
     """Carrega os termos usados para pontuar e ordenar as vagas."""
-    if load_env_file:
-        from dotenv import load_dotenv
-
-        load_dotenv()
+    _prepare_environment(load_env_file)
 
     return _split_setting(os.getenv("JOB_PREFERRED_KEYWORDS"))
 
 
 def load_telegram_settings(*, load_env_file: bool = True) -> TelegramSettings:
     """Carrega e valida as configurações do bot do Telegram."""
-    if load_env_file:
-        from dotenv import load_dotenv
-
-        load_dotenv()
-
-    required_variables = ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID")
-    missing_variables = [
-        variable for variable in required_variables if not os.getenv(variable)
-    ]
-    if missing_variables:
-        variable_names = ", ".join(missing_variables)
-        raise ValueError(
-            f"Variáveis do Telegram obrigatórias ausentes: {variable_names}"
-        )
+    _prepare_environment(load_env_file)
+    _require_environment(
+        "TELEGRAM_BOT_TOKEN",
+        "TELEGRAM_CHAT_ID",
+        context="do Telegram",
+    )
 
     return TelegramSettings(
         bot_token=os.environ["TELEGRAM_BOT_TOKEN"],

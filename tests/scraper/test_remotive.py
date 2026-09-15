@@ -9,7 +9,7 @@ from urllib.error import URLError
 import pytest
 
 from job_monitor.scraper import RemotiveError, fetch_remotive_jobs
-from job_monitor.scraper import remotive
+from job_monitor.scraper import common
 
 
 class FakeResponse(BytesIO):
@@ -41,7 +41,7 @@ def test_fetch_remotive_jobs_maps_api_response(
         assert timeout == 5.0
         return FakeResponse(json.dumps(payload).encode("utf-8"))
 
-    monkeypatch.setattr(remotive, "urlopen", fake_urlopen)
+    monkeypatch.setattr(common, "urlopen", fake_urlopen)
     jobs = fetch_remotive_jobs(timeout=5.0)
 
     assert len(jobs) == 1
@@ -59,7 +59,7 @@ def test_fetch_remotive_jobs_rejects_unexpected_payload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        remotive,
+        common,
         "urlopen",
         lambda request, timeout: FakeResponse(b'{"error": "unexpected"}'),
     )
@@ -74,7 +74,7 @@ def test_fetch_remotive_jobs_reports_network_failure(
     def fail_request(request: Any, timeout: float) -> FakeResponse:
         raise URLError("offline")
 
-    monkeypatch.setattr(remotive, "urlopen", fail_request)
+    monkeypatch.setattr(common, "urlopen", fail_request)
 
     with pytest.raises(RemotiveError, match="Não foi possível"):
         fetch_remotive_jobs()

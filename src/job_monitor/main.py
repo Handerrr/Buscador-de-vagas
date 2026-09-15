@@ -1,7 +1,7 @@
 """Ponto de entrada e coordenação do monitor de vagas."""
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from psycopg import Error as DatabaseError
 
@@ -27,6 +27,7 @@ from job_monitor.service import JobProcessingStatus, process_job
 
 DEFAULT_TAGS = ("python", "data")
 DEFAULT_LIMIT = 50
+MONITOR_EXCEPTIONS = (DatabaseError, RemoteOKError, RemotiveError, ValueError)
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,23 @@ class MonitorSummary:
     invalid: int
     notifications_sent: int
     notification_failures: int
+
+
+def format_summary(summary: MonitorSummary) -> str:
+    """Formata os contadores de uma execução para terminal ou logs."""
+    labels = (
+        ("Recebidas da API", summary.fetched),
+        ("Relevantes", summary.relevant),
+        ("Processadas", summary.processed),
+        ("Maior pontuação", summary.top_score),
+        ("Inseridas", summary.inserted),
+        ("Duplicadas", summary.duplicates),
+        ("Inválidas", summary.invalid),
+        ("Notificações enviadas", summary.notifications_sent),
+        ("Falhas de notificação", summary.notification_failures),
+    )
+    details = "\n".join(f"  {label}: {value}" for label, value in labels)
+    return f"Monitor executado com sucesso:\n{details}"
 
 
 def run_monitor(
@@ -170,33 +188,21 @@ def main() -> int:
         notification_settings = (
             None if arguments.no_notifications else load_telegram_settings()
         )
-        criteria = JobFilterCriteria(
-            title_keywords=(
-                tuple(arguments.titles)
-                if arguments.titles is not None
-                else configured_criteria.title_keywords
-            ),
-            included_keywords=(
-                tuple(arguments.include_keywords)
-                if arguments.include_keywords is not None
-                else configured_criteria.included_keywords
-            ),
-            excluded_keywords=(
-                tuple(arguments.exclude_keywords)
-                if arguments.exclude_keywords is not None
-                else configured_criteria.excluded_keywords
-            ),
-            locations=(
-                tuple(arguments.locations)
-                if arguments.locations is not None
-                else configured_criteria.locations
-            ),
-            levels=(
-                tuple(parse_job_level(level) for level in arguments.levels)
-                if arguments.levels is not None
-                else configured_criteria.levels
-            ),
-        )
+        overrides = {
+            field: tuple(value)
+            for field, value in (
+                ("title_keywords", arguments.titles),
+                ("included_keywords", arguments.include_keywords),
+                ("excluded_keywords", arguments.exclude_keywords),
+                ("locations", arguments.locations),
+            )
+            if value is not None
+        }
+        if arguments.levels is not None:
+            overrides["levels"] = tuple(
+                parse_job_level(level) for level in arguments.levels
+            )
+        criteria = replace(configured_criteria, **overrides)
         summary = run_monitor(
             tags=tuple(arguments.tags),
             limit=arguments.limit,
@@ -208,20 +214,11 @@ def main() -> int:
             ),
             notification_settings=notification_settings,
         )
-    except (DatabaseError, RemoteOKError, RemotiveError, ValueError) as error:
+    except MONITOR_EXCEPTIONS as error:
         print(f"Falha ao executar o monitor: {error}")
         return 1
 
-    print("Monitor executado com sucesso:")
-    print(f"  Recebidas da API: {summary.fetched}")
-    print(f"  Relevantes: {summary.relevant}")
-    print(f"  Processadas: {summary.processed}")
-    print(f"  Maior pontuação: {summary.top_score}")
-    print(f"  Inseridas: {summary.inserted}")
-    print(f"  Duplicadas: {summary.duplicates}")
-    print(f"  Inválidas: {summary.invalid}")
-    print(f"  Notificações enviadas: {summary.notifications_sent}")
-    print(f"  Falhas de notificação: {summary.notification_failures}")
+    print(format_summary(summary))
     return 0
 
 

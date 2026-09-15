@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 from job_monitor.scraper import RemoteOKError, fetch_remote_ok_jobs
-from job_monitor.scraper import remote_ok
+from job_monitor.scraper import common
 
 
 class FakeResponse(BytesIO):
@@ -40,7 +40,7 @@ def test_fetch_remote_ok_jobs_maps_api_response(
         assert timeout == 5.0
         return FakeResponse(json.dumps(payload).encode("utf-8"))
 
-    monkeypatch.setattr(remote_ok, "urlopen", fake_urlopen)
+    monkeypatch.setattr(common, "urlopen", fake_urlopen)
 
     jobs = fetch_remote_ok_jobs(tags=("python", "data"), timeout=5.0)
 
@@ -62,7 +62,7 @@ def test_fetch_remote_ok_jobs_without_tags_uses_base_url(
         assert request.full_url == "https://remoteok.com/api"
         return FakeResponse(b"[]")
 
-    monkeypatch.setattr(remote_ok, "urlopen", fake_urlopen)
+    monkeypatch.setattr(common, "urlopen", fake_urlopen)
 
     assert fetch_remote_ok_jobs() == []
 
@@ -74,8 +74,7 @@ def test_fetch_remote_ok_jobs_rejects_unexpected_payload(
     def fake_urlopen(request: Any, timeout: float) -> FakeResponse:
         return FakeResponse(b'{"error": "unexpected"}')
 
-    monkeypatch.setattr(remote_ok, "urlopen", fake_urlopen)
+    monkeypatch.setattr(common, "urlopen", fake_urlopen)
 
     with pytest.raises(RemoteOKError, match="formato inesperado"):
         fetch_remote_ok_jobs()
-

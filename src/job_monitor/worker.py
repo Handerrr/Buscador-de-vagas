@@ -5,15 +5,12 @@ import signal
 from collections.abc import Callable
 from threading import Event
 
-from psycopg import Error as DatabaseError
-
 from job_monitor.config import (
     load_job_filter_criteria,
     load_job_scoring_keywords,
     load_telegram_settings,
 )
-from job_monitor.main import MonitorSummary, run_monitor
-from job_monitor.scraper import RemoteOKError
+from job_monitor.main import MONITOR_EXCEPTIONS, format_summary, run_monitor
 
 
 DEFAULT_INTERVAL_MINUTES = 60
@@ -40,19 +37,6 @@ def load_worker_interval_minutes() -> int:
     return interval
 
 
-def print_summary(summary: MonitorSummary) -> None:
-    """Exibe no log os contadores de uma coleta concluída."""
-    print("Monitor executado com sucesso:", flush=True)
-    print(f"  Recebidas da API: {summary.fetched}", flush=True)
-    print(f"  Relevantes: {summary.relevant}", flush=True)
-    print(f"  Processadas: {summary.processed}", flush=True)
-    print(f"  Inseridas: {summary.inserted}", flush=True)
-    print(f"  Duplicadas: {summary.duplicates}", flush=True)
-    print(f"  Inválidas: {summary.invalid}", flush=True)
-    print(f"  Notificações enviadas: {summary.notifications_sent}", flush=True)
-    print(f"  Falhas de notificação: {summary.notification_failures}", flush=True)
-
-
 def execute_monitor_cycle() -> int:
     """Executa uma coleta usando as configurações do ambiente."""
     try:
@@ -61,11 +45,11 @@ def execute_monitor_cycle() -> int:
             scoring_keywords=load_job_scoring_keywords(),
             notification_settings=load_telegram_settings(),
         )
-    except (DatabaseError, RemoteOKError, ValueError) as error:
+    except MONITOR_EXCEPTIONS as error:
         print(f"Falha ao executar o monitor: {error}", flush=True)
         return 1
 
-    print_summary(summary)
+    print(format_summary(summary), flush=True)
     return 0
 
 
