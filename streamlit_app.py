@@ -1,6 +1,7 @@
 """Ponto de entrada usado pelo Streamlit Community Cloud."""
 
 import os
+import runpy
 import sys
 from pathlib import Path
 
@@ -17,4 +18,4 @@ try:
 except FileNotFoundError:
     pass
 
-from job_monitor.dashboard import app  # noqa: E402,F401
+runpy.run_module("job_monitor.dashboard.app", run_name="__main__")

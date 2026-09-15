@@ -14,6 +14,13 @@ def test_public_deployment_files_exist() -> None:
     assert WORKFLOW_FILE.is_file()
 
 
+def test_streamlit_entrypoint_executes_dashboard_on_every_rerun() -> None:
+    """Evita tela branca causada pelo cache de um simples import do dashboard."""
+    content = ENTRYPOINT_FILE.read_text(encoding="utf-8")
+
+    assert 'runpy.run_module("job_monitor.dashboard.app"' in content
+
+
 def test_workflow_references_secrets_instead_of_credentials() -> None:
     """Evita gravar banco ou token do Telegram diretamente no workflow."""
     content = WORKFLOW_FILE.read_text(encoding="utf-8")

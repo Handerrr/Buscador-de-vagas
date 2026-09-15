@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from html import escape
 from typing import Any
 
 from job_monitor.config import load_database_settings
@@ -18,6 +19,16 @@ class DashboardSummary:
     total_companies: int
     total_sources: int
     latest_collection: datetime | None
+
+
+def build_job_link(url: object, label: str) -> str:
+    """Monta uma âncora segura que abre a vaga em outra aba."""
+    safe_url = escape(str(url), quote=True)
+    safe_label = escape(label)
+    return (
+        f'<a class="job-link" href="{safe_url}" target="_blank" '
+        f'rel="noopener noreferrer">{safe_label}</a>'
+    )
 
 
 def job_to_dashboard_row(job: Job) -> dict[str, Any]:

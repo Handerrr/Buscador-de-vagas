@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from job_monitor.dashboard.data import (
+    build_job_link,
     count_rows_by_field,
     filter_dashboard_rows,
     load_dashboard_rows,
@@ -31,6 +32,16 @@ st.markdown(
         }
         .hero h1 {margin: 0 0 .5rem 0; font-size: 2.35rem;}
         .hero p {margin: 0; color: #ccfbf1; font-size: 1.05rem;}
+        .job-link {
+            display: inline-block;
+            padding: .55rem .9rem;
+            border-radius: .5rem;
+            background: #0f766e;
+            color: white !important;
+            font-weight: 600;
+            text-decoration: none !important;
+        }
+        .job-link:hover {background: #115e59;}
         [data-testid="stMetric"] {
             background: rgba(15, 118, 110, 0.08);
             border: 1px solid rgba(15, 118, 110, 0.2);
@@ -54,6 +65,14 @@ def get_rows() -> list[dict[str, object]]:
     if is_demo_mode_enabled():
         return [*database_rows, *create_demo_rows()]
     return database_rows
+
+
+def render_job_link(url: object, label: str = "Abrir vaga original ↗") -> None:
+    """Renderiza um link nativo que aceita nova aba e menu de contexto."""
+    st.markdown(
+        build_job_link(url, label),
+        unsafe_allow_html=True,
+    )
 
 
 try:
@@ -147,7 +166,11 @@ with overview_tab:
 with jobs_tab:
     st.subheader("Vagas encontradas")
     table_rows = [
-        {key: value for key, value in row.items() if key != "Descrição"}
+        {
+            key: value
+            for key, value in row.items()
+            if key not in {"Descrição", "Link"}
+        }
         for row in filtered_rows
     ]
     st.dataframe(
@@ -155,10 +178,6 @@ with jobs_tab:
         width="stretch",
         hide_index=True,
         column_config={
-            "Link": st.column_config.LinkColumn(
-                "Link",
-                display_text="Abrir vaga",
-            ),
             "Publicada em": st.column_config.DatetimeColumn(
                 "Publicada em",
                 format="DD/MM/YYYY HH:mm",
@@ -169,6 +188,13 @@ with jobs_tab:
             ),
         },
     )
+    real_jobs = [row for row in filtered_rows if row["Link"]]
+    if real_jobs:
+        st.subheader("Links para candidatura")
+        st.caption("Os links abrem em uma nova aba e aceitam clique com o botão direito.")
+        for row in real_jobs:
+            label = f"{row['Cargo']} — {row['Empresa']} ↗"
+            render_job_link(row["Link"], label)
 
 with details_tab:
     if not filtered_rows:
@@ -189,6 +215,6 @@ with details_tab:
         )
         st.write(selected_job["Descrição"])
         if selected_job["Link"]:
-            st.link_button("Abrir vaga original", str(selected_job["Link"]))
+            render_job_link(selected_job["Link"])
         else:
             st.caption("Exemplo demonstrativo: não há link de candidatura.")

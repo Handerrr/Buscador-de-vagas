@@ -40,6 +40,19 @@ def test_job_to_dashboard_row_uses_friendly_labels() -> None:
     }
 
 
+def test_build_job_link_opens_new_tab_and_escapes_external_data() -> None:
+    """Cria um link nativo sem permitir injeção de atributos HTML."""
+    link = data.build_job_link(
+        'https://example.com/job?name="test"',
+        "Python <Developer>",
+    )
+
+    assert 'target="_blank"' in link
+    assert 'rel="noopener noreferrer"' in link
+    assert 'name=&quot;test&quot;' in link
+    assert "Python &lt;Developer&gt;" in link
+
+
 def test_load_dashboard_rows_closes_database_connection(monkeypatch: Any) -> None:
     """Libera a conexão depois de carregar as vagas."""
     connection = FakeConnection()
